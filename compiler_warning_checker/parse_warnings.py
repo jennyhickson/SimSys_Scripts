@@ -20,7 +20,7 @@ class Warning:
         else:
             return False
 
-    def getoffsets(self,reflineno):
+    def getoffsets(self,reflineno,line):
         """Takes reflineno(int) and line(str)
         Returns two integers
         """
@@ -53,8 +53,27 @@ class GnuWarning(Warning):
         self.startstr = "Warning:"
 
         #Dictionary of line offsets as these may vary depending on the warning type
-        self.offsetdict = {'default': (-4,1)}
-    
+        self.offsetdict = {'default': (-4,1), 'rank_mismatch': (-6,1)}
+
+    def getoffsets(self,reflineno,line):
+        """Takes reflineno(int) and line(str)
+        Returns two integers
+        """
+        warningtype = "default"
+
+        if line.find("Rank mismatch between actual argument at") != -1:
+            warningtype = "rank_mismatch"
+
+        startline = reflineno + self.offsetdict[warningtype][0]
+        if startline <= 0:
+            raise ValueError("Start line less than zero")
+        
+        endline = reflineno + self.offsetdict[warningtype][1]
+        if endline <= 0:
+            raise ValueError("End line less than zero")
+        
+        return startline, endline
+
     def getmessage(self,lines,sourcestr="/src"):
         """Takes lines(list(str)) and optionally sourcestr
         Returns list(str)
@@ -63,12 +82,15 @@ class GnuWarning(Warning):
         #-path fragment to the source file in the first line
         #-self.startstr in the last line
         """
-        if lines[0].find(sourcestr) == -1:
-            print(lines)
+        #Fudge for rank mismatch which can change the mnumber of lines printed
+        if lines[0].find(sourcestr) == -1 and lines[0].find("Rank mismatch between actual argument at") != -1:
+            for line in lines:
+                print(line)
             raise ValueError("Expecting first line of warning to contain /src/")
 
         if lines[-1].find(self.startstr) == -1:
-            print(lines)
+            for line in lines:
+                print(line)
             raise ValueError("Expecting line of warning to contain " + self.startstr)
 
         return lines
@@ -134,7 +156,7 @@ def _find_message(linesin,searchobj):
     lineno = 0
     for line in linesin:
         if searchobj.foundmessage(line):
-            startline, endline = searchobj.getoffsets(lineno)
+            startline, endline = searchobj.getoffsets(lineno,line)
             messagesout.append(searchobj.getmessage(linesin[startline:endline]))
         #end if
 
@@ -148,8 +170,11 @@ def main():
     """Main program.
     Parses fcm-make.log files and filters out compiler warnings"""
 
-    cylc_run = "/net/data/users/hadgr/cylc-run"
-    run_name = "vn13.5_scm_warnings/run4"
+    # cylc_run = "/net/data/users/hadgr/cylc-run"
+    # run_name = "vn13.5_scm_warnings/run4"
+
+    cylc_run = "/home/h01/frzz/cylc-run"
+    run_name = "um_exz_heads_all_2024-04-29/run1"
 
     #Search through for appropriate tasks
     for dir in os.listdir(cylc_run + "/" + run_name + "/" + "log/job/1/"):
@@ -159,6 +184,8 @@ def main():
             print("======= Processing " + task_name + " =======" )
             
             filename = cylc_run + "/" + run_name + "/" + "log/job/1/" + task_name + "/01/fcm-make.log"
+
+            print(filename)
 
             #Work out which compiler we're working with
             #Switching for different versions could be done here or in the classes
