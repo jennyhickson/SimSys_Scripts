@@ -42,6 +42,7 @@ class Warning:
         """
         return lines
 
+#Needs tuning- rank and type mismatched broken
 class GnuWarning(Warning):
     """Class to describe detection and extraction of a message
     warning from the GNU compiler"""
@@ -139,11 +140,59 @@ class AOCCWarning(Warning):
     def __init__(self):
         super().__init__()
 
+        #Dictionary of line offsets as these may vary depending on the warning type
+        self.offsetdict = {'default': (0,3), 'transform': (0,2)}
+
+    def foundmessage(self,line):
+        """Takes line(str) and returns True if a message is found"""
+        if line.find(self.startstr) != -1:
+            #Add special case to ignore a specific warning
+            if line.find("warning: missing terminating") != -1:
+                return False
+            else:
+                return True
+        else:
+            return False
+
+    def getoffsets(self,reflineno,line):
+        """Takes reflineno(int) and line(str)
+        Returns two integers
+        """
+        warningtype = "default"
+
+        if line.find("-Wpass-failed=transform-warning"):
+            warningtype = "transform"
+
+        startline = reflineno + self.offsetdict[warningtype][0]
+        if startline < 0:
+            raise ValueError("Start line less than zero")
+        
+        endline = reflineno + self.offsetdict[warningtype][1]
+        if endline < 0:
+            raise ValueError("End line less than zero")
+        
+        return startline, endline
+
 #Needs tuning
 class NVIDIAWarning(Warning):
     """Child of Warning for the NVIDIA compiler"""
     def __init__(self):
         super().__init__()
+
+        #Dictionary of line offsets as these may vary depending on the warning type
+        self.offsetdict = {'default': (0,3)}
+
+    def foundmessage(self,line):
+        """Takes line(str) and returns True if a message is found"""
+        if line.find(self.startstr) != -1:
+            #Add special case to ignore a specific warning
+            if line.find("warning: missing terminating") != -1:
+                return False
+            else:
+                return True
+        else:
+            return False
+
 
 def _read_file(filename):
     """Takes filename (str)
