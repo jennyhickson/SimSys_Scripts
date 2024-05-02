@@ -6,11 +6,12 @@ class GnuWarning:
     """Class to describe detection and extraction of a message
     warning from the GNU compiler"""
   
-    #String to detect a warning
-    startstr = "Warning:"
+    def __init__(self):
+        #String to detect a warning
+        self.startstr = "Warning:"
 
-    #Dictionary of line offsets as these may vary depending on the warning type
-    offsetdict = {'default': (-4,1)}
+        #Dictionary of line offsets as these may vary depending on the warning type
+        self.offsetdict = {'default': (-4,1)}
 
     def foundmessage(self,line):
         """Takes line(str) and returns True if a message is found"""
