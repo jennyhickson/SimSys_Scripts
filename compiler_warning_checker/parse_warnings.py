@@ -11,12 +11,18 @@ class Warning:
         self.startstr = "warning:"
 
         #Dictionary of line offsets as these may vary depending on the warning type
-        self.offsetdict = {'default': (1,1)}
+        self.offsetdict = {'default': (0,3)}
 
     def foundmessage(self,line):
         """Takes line(str) and returns True if a message is found"""
         if line.find(self.startstr) != -1:
-            return True
+            #Add special cases to ignore specific warnings common to many compilers
+            if line.find("warning: missing terminating") != -1 or \
+               line.find("statically linked applications requires") != -1 or \
+               line.find(""):
+                return False
+            else:
+                return True
         else:
             return False
 
@@ -42,10 +48,44 @@ class Warning:
         """
         return lines
 
+class AOCCWarning(Warning):
+    """Child of Warning for the AOCC compiler"""
+    def __init__(self):
+        super().__init__()
+
+        #Dictionary of line offsets as these may vary depending on the warning type
+        self.offsetdict = {'default': (0,3), 'transform': (0,2)}
+
+    def getoffsets(self,reflineno,line):
+        """Takes reflineno(int) and line(str)
+        Returns two integers
+        """
+        warningtype = "default"
+
+        if line.find("-Wpass-failed=transform-warning"):
+            warningtype = "transform"
+
+        startline = reflineno + self.offsetdict[warningtype][0]
+        if startline < 0:
+            raise ValueError("Start line less than zero")
+        
+        endline = reflineno + self.offsetdict[warningtype][1]
+        if endline < 0:
+            raise ValueError("End line less than zero")
+        
+        return startline, endline
+
+
 #Needs tuning- rank and type mismatched broken
 class GnuWarning(Warning):
     """Class to describe detection and extraction of a message
-    warning from the GNU compiler"""
+    warning from the GNU compiler
+    
+    GNU is different from other compilers with the warning format
+
+    Start of each warning has .F90:239:21: so a regex is needed
+    End of each warning has Warning:
+    """
   
     def __init__(self):
         super().__init__()
@@ -95,103 +135,6 @@ class GnuWarning(Warning):
             raise ValueError("Expecting line of warning to contain " + self.startstr)
 
         return lines
-
-#Needs tuning
-class CCEWarning(Warning):
-    """Child of Warning for the CCE compiler"""
-    def __init__(self):
-        super().__init__()
-
-        #Dictionary of line offsets as these may vary depending on the warning type
-        self.offsetdict = {'default': (0,3)}
-
-    def foundmessage(self,line):
-        """Takes line(str) and returns True if a message is found"""
-        if line.find(self.startstr) != -1:
-            #Add special case to ignore a specific warning
-            if line.find("warning: missing terminating") != -1:
-                return False
-            else:
-                return True
-        else:
-            return False
-
-#Needs tuning
-class PGIWarning(Warning):
-    """Child of Warning for the PGI compiler"""
-    def __init__(self):
-        super().__init__()
-
-#Needs tuning
-class IntelWarning(Warning):
-    """Child of Warning for the Intel compiler"""
-    def __init__(self):
-        super().__init__()
-
-#Needs tuning
-class NAGWarning(Warning):
-    """Child of Warning for the NAG compiler"""
-    def __init__(self):
-        super().__init__()
-
-#Needs tuning
-class AOCCWarning(Warning):
-    """Child of Warning for the AOCC compiler"""
-    def __init__(self):
-        super().__init__()
-
-        #Dictionary of line offsets as these may vary depending on the warning type
-        self.offsetdict = {'default': (0,3), 'transform': (0,2)}
-
-    def foundmessage(self,line):
-        """Takes line(str) and returns True if a message is found"""
-        if line.find(self.startstr) != -1:
-            #Add special case to ignore a specific warning
-            if line.find("warning: missing terminating") != -1:
-                return False
-            else:
-                return True
-        else:
-            return False
-
-    def getoffsets(self,reflineno,line):
-        """Takes reflineno(int) and line(str)
-        Returns two integers
-        """
-        warningtype = "default"
-
-        if line.find("-Wpass-failed=transform-warning"):
-            warningtype = "transform"
-
-        startline = reflineno + self.offsetdict[warningtype][0]
-        if startline < 0:
-            raise ValueError("Start line less than zero")
-        
-        endline = reflineno + self.offsetdict[warningtype][1]
-        if endline < 0:
-            raise ValueError("End line less than zero")
-        
-        return startline, endline
-
-#Needs tuning
-class NVIDIAWarning(Warning):
-    """Child of Warning for the NVIDIA compiler"""
-    def __init__(self):
-        super().__init__()
-
-        #Dictionary of line offsets as these may vary depending on the warning type
-        self.offsetdict = {'default': (0,3)}
-
-    def foundmessage(self,line):
-        """Takes line(str) and returns True if a message is found"""
-        if line.find(self.startstr) != -1:
-            #Add special case to ignore a specific warning
-            if line.find("warning: missing terminating") != -1:
-                return False
-            else:
-                return True
-        else:
-            return False
 
 
 def _read_file(filename):
@@ -261,7 +204,7 @@ def main():
 
             print("======= Processing " + task_name + " =======" )
             
-            filename = cylc_run + "/" + run_name + "/" + "log/job/1/" + task_name + "/01/fcm-make.log"
+            filename = cylc_run + "/" + run_name + "/" + "log/job/1/" + task_name + "/NN/fcm-make.log"
 
             print(filename)
 
@@ -270,17 +213,17 @@ def main():
             if task_name.find("_gnu_") != -1:
                 searchparams = GnuWarning()
             elif task_name.find("_cce_") != -1:
-                searchparams = CCEWarning()
+                searchparams = Warning()
             elif task_name.find("_pgi_") != -1:
-                searchparams = PGIWarning()
+                searchparams = Warning()
             elif task_name.find("_intel_") != -1 or task_name.find("_ifort_") != -1:
-                searchparams = IntelWarning()
+                searchparams = Warning()
             elif task_name.find("_nag_") != -1:
-                searchparams = NAGWarning()
+                searchparams = Warning()
             elif task_name.find("_aocc_") != -1:
                 searchparams = AOCCWarning()
             elif task_name.find("_nvidia_") != -1:
-                searchparams = NVIDIAWarning()
+                searchparams = Warning()
             else:
                 print(filename)
                 raise ValueError("Unable to determine compiler")
@@ -291,9 +234,9 @@ def main():
 
             extracted_messages = _find_message(extracted_lines,searchparams)
 
-            print(task_name + ": Extacted " + str(len(extracted_messages)) + " compiler warnings")
-            for line in extracted_messages:
-                print(line)
+            #print(task_name + ": Extacted " + str(len(extracted_messages)) + " compiler warnings")
+            # for line in extracted_messages:
+                # print(line)
         #end if
     #end for
 
