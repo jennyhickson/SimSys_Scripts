@@ -110,11 +110,19 @@ def main():
     """Main program.
     Parses fcm-make.log files and filters out compiler warnings"""
  
-    filename = "/net/data/users/hadgr/cylc-run/vn13.5_scm_warnings/run4/log/job/1/fcm_make_xc40_gnu_um_rigorous_omp/01/fcm-make.log"
+    # filename = "/net/data/users/hadgr/cylc-run/vn13.5_scm_warnings/run4/log/job/1/fcm_make_xc40_gnu_um_rigorous_omp/01/fcm-make.log"
 
-    #Instantiate an object that can search and return the warnings.
-    #Presently a simple class but could get into inheritance and stuff
-    searchparams = GnuWarning()
+    cylc_run = "/net/data/users/hadgr/cylc-run"
+    run_name = "vn13.5_scm_warnings/run4"
+    task_name = "fcm_make_xc40_gnu_um_rigorous_omp"
+
+    filename = cylc_run + "/" + run_name + "/" + "log/job/1/" + task_name + "/01/fcm-make.log"
+
+    #Work out which compiler we're working with
+    if task_name.find("_gnu_"):
+        searchparams = GnuWarning()
+    else:
+        raise ValueError("Unable to determine compiler")
 
     raw_lines = _read_file(filename)
 
