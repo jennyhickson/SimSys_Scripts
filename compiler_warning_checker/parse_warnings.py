@@ -49,11 +49,12 @@ class GnuWarning:
         #-path to the source file in the first line
         #-self.startstr in the last line
 
-        if not lines[0].find("/src/"):
-            print(lines[0])
+        if lines[0].find("/src/") == -1:
+            print(lines)
             raise ValueError("Expecting first line of warning to contain /src/")
 
-        if not lines[-1].find(self.startstr):
+        if lines[-1].find(self.startstr) == -1:
+            print(lines)
             raise ValueError("Expecting line of warning to contain " + self.startstr)
 
         return lines
@@ -109,28 +110,35 @@ def _find_message(linesin,searchobj):
 def main():
     """Main program.
     Parses fcm-make.log files and filters out compiler warnings"""
- 
-    # filename = "/net/data/users/hadgr/cylc-run/vn13.5_scm_warnings/run4/log/job/1/fcm_make_xc40_gnu_um_rigorous_omp/01/fcm-make.log"
 
     cylc_run = "/net/data/users/hadgr/cylc-run"
     run_name = "vn13.5_scm_warnings/run4"
-    task_name = "fcm_make_xc40_gnu_um_rigorous_omp"
 
-    filename = cylc_run + "/" + run_name + "/" + "log/job/1/" + task_name + "/01/fcm-make.log"
+    #Search through for appropriate tasks
+    for dir in os.listdir(cylc_run + "/" + run_name + "/" + "log/job/1/"):
+        if dir.find("fcm_make_") != -1 and not dir.find("install_ctldata") != -1:
+            task_name = dir
 
-    #Work out which compiler we're working with
-    if task_name.find("_gnu_"):
-        searchparams = GnuWarning()
-    else:
-        raise ValueError("Unable to determine compiler")
+            print("======= Processing " + task_name + " =======" )
+            
+            filename = cylc_run + "/" + run_name + "/" + "log/job/1/" + task_name + "/01/fcm-make.log"
 
-    raw_lines = _read_file(filename)
+            #Work out which compiler we're working with
+            if task_name.find("_gnu_") != -1:
+                searchparams = GnuWarning()
+            else:
+                print(filename)
+                raise ValueError("Unable to determine compiler")
 
-    extracted_lines = _extract_line_start(raw_lines,"[>>&2]")
+            raw_lines = _read_file(filename)
 
-    extracted_messages = _find_message(extracted_lines,searchparams)
+            extracted_lines = _extract_line_start(raw_lines,"[>>&2]")
 
-    print("Extacted " + str(len(extracted_messages)) + " compiler warnings")
+            extracted_messages = _find_message(extracted_lines,searchparams)
+
+            print(task_name + ": Extacted " + str(len(extracted_messages)) + " compiler warnings")
+        #end if
+    #end for
 
     return
 
