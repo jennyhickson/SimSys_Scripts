@@ -27,11 +27,11 @@ class Warning:
         warningtype = "default"
 
         startline = reflineno + self.offsetdict[warningtype][0]
-        if startline <= 0:
+        if startline < 0:
             raise ValueError("Start line less than zero")
         
         endline = reflineno + self.offsetdict[warningtype][1]
-        if endline <= 0:
+        if endline < 0:
             raise ValueError("End line less than zero")
         
         return startline, endline
@@ -84,8 +84,8 @@ class GnuWarning(Warning):
         """
         #Fudge for rank mismatch which can change the mnumber of lines printed
         if lines[0].find(sourcestr) == -1 and lines[0].find("Rank mismatch between actual argument at") != -1:
-            for line in lines:
-                print(line)
+            # for line in lines:
+                # print(line)
             raise ValueError("Expecting first line of warning to contain /src/")
 
         if lines[-1].find(self.startstr) == -1:
@@ -100,6 +100,20 @@ class CCEWarning(Warning):
     """Child of Warning for the CCE compiler"""
     def __init__(self):
         super().__init__()
+
+        #Dictionary of line offsets as these may vary depending on the warning type
+        self.offsetdict = {'default': (0,3)}
+
+    def foundmessage(self,line):
+        """Takes line(str) and returns True if a message is found"""
+        if line.find(self.startstr) != -1:
+            #Add special case to ignore a specific warning
+            if line.find("warning: missing terminating") != -1:
+                return False
+            else:
+                return True
+        else:
+            return False
 
 #Needs tuning
 class PGIWarning(Warning):
@@ -229,6 +243,8 @@ def main():
             extracted_messages = _find_message(extracted_lines,searchparams)
 
             print(task_name + ": Extacted " + str(len(extracted_messages)) + " compiler warnings")
+            for line in extracted_messages:
+                print(line)
         #end if
     #end for
 
