@@ -91,7 +91,7 @@ class GnuWarning(Warning):
 
         #String to detect a warning
         self.startstr = ".F90:"
-        self.endstr = "warning:"
+        self.endstr = "Warning:"
 
         #Dictionary of line offsets as these may vary depending on the warning type
         self.offsetdict = {'default': (0,10)}
@@ -131,14 +131,24 @@ class GnuWarning(Warning):
         if lines[0].find(sourcestr) == -1:
             raise ValueError("Expecting first line of warning to contain /src/")
 
+        #Default case for warnings
         iline = 0
         for line in lines:
+            iline += 1
             if line.find(self.endstr) != -1:
                 return lines[0:iline]
-            iline += 1
+        
+        #Special case for "missing terminating character" warnings
+        if lines[1].find("warning: missing terminating") != -1:
+            return lines[0:4]
  
-        return lines
-
+        #Last resort is to package up the lot and say we failed to parse
+        returnlist = []
+        for line in lines:
+            returnlist.append(line)
+        returnlist.append("Unable to parse\n")
+        
+        return returnlist
 
 def _read_file(filename):
     """Takes filename (str)
@@ -184,6 +194,31 @@ def _find_message(linesin,searchobj):
     #end for
 
     return messagesout
+
+def _write_warnings(messages, filename, path="./", newline=False):
+    """Takes messages(list(list(str)) and writes to a file
+    The optional newline argument adds a newline at the end of each
+    element of the list.
+    """
+    retn = "\n" if newline else ""
+
+    with open(path + "/" + filename, "w") as filehandle:
+        for lines in messages:
+            filehandle.write("{0:s}{1:s}".format("========\n", retn))
+            for line in lines:
+                filehandle.write("{0:s}{1:s}".format(line, retn))
+
+
+def _write_file(filename, lines, newline=False):
+    """Takes filemname and list of strings and opt newline boolean.
+    Writes array to file of given name.
+    The optional newline argument adds a newline at the end of each
+    element of the list.
+    Returns None"""
+    retn = "\n" if newline else ""
+    with open(filename, "w") as filehandle:
+        for line in lines:
+            filehandle.write("{0:s}{1:s}".format(line, retn))
 
 
 def main():
@@ -237,9 +272,10 @@ def main():
 
             extracted_messages = _find_message(extracted_lines,searchparams)
 
-            #print(task_name + ": Extacted " + str(len(extracted_messages)) + " compiler warnings")
-            # for line in extracted_messages:
-                # print(line)
+            outputfile = task_name + ".txt"
+
+            _write_warnings(extracted_messages,outputfile)
+
         #end if
     #end for
 
